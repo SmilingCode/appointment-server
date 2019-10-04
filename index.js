@@ -130,30 +130,66 @@ function addEvent(calendar, auth) {
 */
 
 module.exports = {
-  showList: () => {
+  showList: (startDate, endDate, callback) => {
+
     fs.readFile('credentials.json', (err, content) => {
       if (err) return console.log('Error loading client secret file:', err);
   
       authorize(JSON.parse(content), (auth) => {
         const calendar = google.calendar({version: 'v3', auth});
+        
         calendar.events.list({
           calendarId: 'primary',
-          timeMin: (new Date()).toISOString(),
-          maxResults: 10,
+          timeMin: startDate,
+          timeMax: endDate,
+          //maxResults: 10,
           singleEvents: true,
-          orderBy: 'startTime',
+          orderBy: 'startTime'
         }, (err, res) => {
-          if (err) return console.log('The API returned an error: ' + err);
+          resData = res.data.items;
+          if (err) {
+            callback(new Error('The API returned an error: ' + err), null);
+            return console.log('The API returned an error: ' + err);
+          }
           const events = res.data.items;
           if (events.length) {
-            console.log('Upcoming 10 events:');
-            events.map((event, i) => {
-              const start = event.start.dateTime || event.start.date;
-              console.log(`${start} - ${event.summary}`);
-            });
+            callback(null, res.data.items);
+            //events.map((event, i) => {
+              //const start = event.start.dateTime || event.start.date;
+              //console.log(`${start} - ${event.summary}`);
+            //});
           } else {
             console.log('No upcoming events found.');
           }
+        });
+      });
+    })
+  },
+  checkTimeSlots: (startTime, endTime, callback) => {
+    fs.readFile('credentials.json', (err, content) => {
+      if (err) return console.log('Error loading client secret file:', err);
+  
+      authorize(JSON.parse(content), (auth) => {
+        const calendar = google.calendar({version: 'v3', auth});
+        const calendarId = 'primary';
+
+        let params = {
+            resource: {
+              timeMin: startTime,
+              timeMax: endTime,
+              items: [{id: calendarId}]
+          }
+        };
+
+        calendar.freebusy.query(params)
+        .then(resp => {
+          // console.log('inserted event: ')
+          // console.log(resp.data.calendars.primary.busy)
+          callback(null, resp.data.calendars.primary.busy);
+        })
+        .catch(err => {
+          callback(new Error('Error: insertEvent-' + err.message), null);
+          console.log('Error: insertEvent-' + err.message)
         });
       });
     })
