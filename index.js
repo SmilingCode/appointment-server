@@ -193,5 +193,37 @@ module.exports = {
         });
       });
     })
+  },
+  addEvent: (beginTime, finishTime, callback) => {
+    fs.readFile('credentials.json', (err, content) => {
+      if (err) return console.log('Error loading client secret file:', err);
+  
+      authorize(JSON.parse(content), (auth) => {
+        const calendar = google.calendar({version: 'v3', auth});
+        
+        calendar.events.insert({
+          auth: auth,
+          calendarId: 'primary',
+          resource: {
+            summary: 'Massage Event',
+            description: 'Sample description',
+            start: {
+              dateTime: beginTime
+            },
+            end: {
+              dateTime: finishTime
+            }
+          }
+        }, (err, res) => {
+          if (err) {
+            console.log('Error: ' + err);
+            callback(new Error('Error: ' + err), null);
+          } else {
+            //console.log(res.data);
+            callback(null, res.data);
+          }
+        });
+      });
+    })
   }
 }

@@ -4,37 +4,24 @@ var path = require('path');
 var test = require('./index');
 
 /**
- * get the response of time slots
- */
-var startTime = new Date('01 October 2019 14:48 UTC');
-var endTime = new Date('30 October 2019 14:48 UTC');
-test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
-  if (err) {
-    console.log(err.message);
-  } else {
-    console.log('inserted event: ')
-    console.log(timeslots)
-  }
-});
-
-/**
  * get the response of event list
  */
-var startDate = new Date('10 Oct 2019 09:00');
-var endDate = new Date('10 Oct 2019 18:00');
+// var startDate = new Date('10 Oct 2019 09:00');
+// var endDate = new Date('10 Oct 2019 18:00');
 
-test.showList(startDate.toISOString(), endDate.toISOString(), (err, lists) => {
-  if (err) {
-    console.log("Error: ", err.message)
-  } else {
-    lists.map((list, i) => {
-      console.log('Upcoming 10 events:');
-      const start = list.start.dateTime || list.start.date;
-      console.log(`${start} - ${list.summary}`);
-    })
+// test.showList(startDate.toISOString(), endDate.toISOString(), (err, lists) => {
+//   if (err) {
+//     console.log("Error: ", err.message)
+//   } else {
+//     lists.map((list, i) => {
+//       console.log('Upcoming 10 events:');
+//       const start = list.start.dateTime || list.start.date;
+//       console.log(`${start} - ${list.summary}`);
+//     })
 
-  }
-});
+//   }
+// });
+
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -81,6 +68,20 @@ app.get('/days', function(req, res) {
   res.send(resMsg);
 });
 
+const startTimes = [
+  '09:00:00', 
+  '09:45:00', 
+  '10:30:00', 
+  '11:15:00', 
+  '12:00:00', 
+  '12:45:00',
+  '13:30:00',
+  '14:15:00',
+  '15:00:00',
+  '15:45:00',
+  '16:30:00',
+  '17:15:00'
+]
 // Returns a list of all 40-minute time slots available
 app.get('timeslots', function(req, res) {
   let resMsg = {
@@ -147,12 +148,6 @@ app.get('timeslots', function(req, res) {
 });
 
 app.post('book', function (req, res) {
-  let resMsg = {
-    success: null,
-    startTime: null,
-    endTime: null
-  }
-
   const year = req.query.year;
   const month = req.query.month;
   const day = req.query.day;
@@ -205,9 +200,54 @@ app.post('book', function (req, res) {
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
     return ;
   }
+
   // query google calender
-  
-})
+
+   /**
+   * get the response of time slots
+   */
+  // var startTime = new Date('01 October 2019 14:48 UTC');
+  // var endTime = new Date('30 October 2019 14:48 UTC');
+  const startTime = new Date(day + ' ' + month + ' ' + year + ' 09:00');
+  const endTime = new Date(day + ' ' + month + ' ' + year + ' 18:00');
+  const userTime = hour + ':' + minute + ':00';
+  test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
+    if (err) {
+      console.log(err.message);
+    } else {
+      timeslots.map((timeslot, i) => {
+        if (timeslot.start.indexOf(userTime) != -1) {
+          res.statusCode = 403;
+          res.send({success: false, message: 'Invalid time slot: this time is booked by someone else'});
+        }
+      })
+    }
+  });
+
+  if (startTimes.indexOf(userTime) == -1) {
+    res.statusCode = 403;
+    res.send({success: false, message: 'Invalid time slot: this time is not validate'});
+    return ;
+  }
+
+  /**
+   * insert event to calendar
+   */
+  // var beginTime = new Date('12 Oct 2019 09:00');
+  // var finishTime = new Date('12 Oct 2019 09:45');
+  const beginTime = new Date(day + ' ' + month + ' ' + year + ' ' + hour + ':' + minute + ':00');
+  const finishTime = new Date(day + ' ' + month + ' ' + year + ' ' + hour + ':' + minute + ':00');
+  let min = beginTime.getMinutes();
+  finishTime.setMinutes(min + 40);
+  test.addEvent(beginTime.toISOString(), finishTime.toISOString(), (err, resp) => {
+    if (err) {
+      console.log(err.message)
+    } else {
+      res.statusCode = 200;
+      res.send({success: true, startTime: beginTime.toISOString(), endTime: finishTime.toISOString()});
+    }
+  });
+});
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
