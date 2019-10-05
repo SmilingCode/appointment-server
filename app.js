@@ -3,41 +3,11 @@ var express = require('express');
 var path = require('path');
 var logger = require('morgan');
 
-var dayRouter = require('./routes/dayRouter')
 var test = require('./index');
-
-/**
- * get the response of time slots
- */
-// var startTime = new Date('10 October 2019 09:00');
-// var endTime = new Date('10 October 2019 18:00');
-
-// test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
-//   if (err) {
-//     console.log(err.message);
-//   } else {
-//     console.log(timeslots)
-//     for (let index = 0; index < startTimes.length; index++) {
-//       const element = startTimes[index];
-//       timeslots.map((timeslot) => {
-//         if (timeslot.start.indexOf(element) == -1) {
-//           const startTime = new Date('10 October 2019 ' + element);
-//           let endTime = new Date('10 October 2019 ' + element);
-//           endTime.setTime(endTime.getTime() + 40*60*1000);
-
-//           const slot = {
-//             startTime: startTime.toISOString(),
-//             endTime: endTime.toISOString()
-//           }
-//           console.log(slot)
-//         }
-//       });
-//     }
-//   }
-// });
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var dayRouter = require('./routes/dayRouter');
 
 var app = express();
 
@@ -149,9 +119,9 @@ app.get('/timeslots', function(req, res) {
 app.post('/book', function (req, res) {
   const year = req.query.year;
   let month = req.query.month;
-  const day = req.query.day;
-  const hour = req.query.hour;
-  const minute = req.query.minute;
+  let day = req.query.day;
+  let hour = req.query.hour;
+  let minute = req.query.minute;
 
   const date = new Date();
   const currentDate = Date.parse(date);
@@ -191,7 +161,6 @@ app.post('/book', function (req, res) {
     res.send({success: false, message: "Invalid time slot: Please input the month between 01 - 12"})
     return ;
   } else if (month.length == 1) {
-    console.log(typeof month)
     month = `0${month}`;
   }
 
@@ -200,6 +169,8 @@ app.post('/book', function (req, res) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
     return ;
+  } else if (day.length == 1) {
+    day = `0${day}`;
   }
 
   // user input hour is not within 24h
@@ -207,6 +178,8 @@ app.post('/book', function (req, res) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
     return ;
+  } else if (hour.length == 1) {
+    hour = `0${hour}`;
   }
 
   // user input minute is not within 60mins
@@ -214,6 +187,8 @@ app.post('/book', function (req, res) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
     return ;
+  } else if (minute.length == 1) {
+    minute = `0${minute}`;
   }
 
   // query google calender
@@ -226,6 +201,14 @@ app.post('/book', function (req, res) {
   const startTime = new Date(Date.UTC(year, month-1, day, 9, 0, 0));
   const endTime = new Date(Date.UTC(year, month-1, day, 18, 0, 0));
   const userTime = hour + ':' + minute + ':00';
+
+  // Robot doesn't work on weekend
+  if (startTime.getDay() == 6 || startTime.getDay() == 0) {
+    res.statusCode = 403;
+    res.send({success: false, message: "Robot does not work on weekend"});
+    return ;
+  }
+
   try {
     test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
       if (err) {

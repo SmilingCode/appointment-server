@@ -71,64 +71,6 @@ function getAccessToken(oAuth2Client, callback) {
   });
 }
 
-/*
-// google calender event list
-function listEvents(auth) {
-  const calendar = google.calendar({version: 'v3', auth});
-  
-  // showEvent(calendar);
-  // addEvent(calendar, auth);
-}
-
-function showEvent(calendar) {
-  calendar.events.list({
-    calendarId: 'primary',
-    timeMin: (new Date()).toISOString(),
-    maxResults: 10,
-    singleEvents: true,
-    orderBy: 'startTime',
-  }, (err, res) => {
-    if (err) return console.log('The API returned an error: ' + err);
-    const events = res.data.items;
-    if (events.length) {
-      console.log('Upcoming 10 events:');
-      events.map((event, i) => {
-        const start = event.start.dateTime || event.start.date;
-        console.log(`${start} - ${event.summary}`);
-      });
-    } else {
-      console.log('No upcoming events found.');
-    }
-  });
-}
-
-function addEvent(calendar, auth) {
-  // test insert new event on calendar
-  calendar.events.insert({
-    auth: auth,
-    calendarId: 'primary',
-    resource: {
-      summary: 'Sample Event',
-      description: 'Sample description',
-      start: {
-        dateTime: '2019-10-22T09:00:00-07:00',
-        timeZone: 'UTC'
-      },
-      end: {
-        dateTime: '2019-10-22T17:00:00-07:00',
-        timeZone: 'UTC'
-      }
-    }
-  }, (err, res) => {
-    if (err) {
-      console.log('Error: ' + err);
-      return;
-    }
-    console.log(res.data);
-  });
-}
-*/
-
 module.exports = {
   showList: (startDate, endDate, callback) => {
 
@@ -144,7 +86,8 @@ module.exports = {
           timeMax: endDate,
           //maxResults: 10,
           singleEvents: true,
-          orderBy: 'startTime'
+          orderBy: 'startTime',
+          timeZone: 'UTC'
         }, (err, res) => {
           resData = res.data.items;
           if (err) {
