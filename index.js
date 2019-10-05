@@ -177,6 +177,7 @@ module.exports = {
             resource: {
               timeMin: startTime,
               timeMax: endTime,
+              timeZone: 'UTC',
               items: [{id: calendarId}]
           }
         };
@@ -208,10 +209,12 @@ module.exports = {
             summary: 'Massage Event',
             description: 'Sample description',
             start: {
-              dateTime: beginTime
+              dateTime: beginTime,
+              timeZone: 'UTC'
             },
             end: {
-              dateTime: finishTime
+              dateTime: finishTime,
+              timeZone: 'UTC'
             }
           }
         }, (err, res) => {

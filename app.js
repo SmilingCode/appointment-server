@@ -1,27 +1,40 @@
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
+var logger = require('morgan');
+
+var dayRouter = require('./routes/dayRouter')
 var test = require('./index');
 
 /**
- * get the response of event list
+ * get the response of time slots
  */
-// var startDate = new Date('10 Oct 2019 09:00');
-// var endDate = new Date('10 Oct 2019 18:00');
+// var startTime = new Date('10 October 2019 09:00');
+// var endTime = new Date('10 October 2019 18:00');
 
-// test.showList(startDate.toISOString(), endDate.toISOString(), (err, lists) => {
+// test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
 //   if (err) {
-//     console.log("Error: ", err.message)
+//     console.log(err.message);
 //   } else {
-//     lists.map((list, i) => {
-//       console.log('Upcoming 10 events:');
-//       const start = list.start.dateTime || list.start.date;
-//       console.log(`${start} - ${list.summary}`);
-//     })
+//     console.log(timeslots)
+//     for (let index = 0; index < startTimes.length; index++) {
+//       const element = startTimes[index];
+//       timeslots.map((timeslot) => {
+//         if (timeslot.start.indexOf(element) == -1) {
+//           const startTime = new Date('10 October 2019 ' + element);
+//           let endTime = new Date('10 October 2019 ' + element);
+//           endTime.setTime(endTime.getTime() + 40*60*1000);
 
+//           const slot = {
+//             startTime: startTime.toISOString(),
+//             endTime: endTime.toISOString()
+//           }
+//           console.log(slot)
+//         }
+//       });
+//     }
 //   }
 // });
-
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -32,6 +45,7 @@ var app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
+app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -39,34 +53,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-
-// Returns an array of all days in the specified month
-app.get('/days', function(req, res) {
-  let resMsg = {
-    success: null,
-    days: []
-  }
-
-  let date = new Date();
-  const year = req.query.year;
-  const month = req.query.month;
-
-  // query google calender
-  if (year.length != 4) {
-    res.status = 403;
-    res.send({success: false, message: "Please input year with 4 digits"})
-    return ;
-  }
-
-  if (month == 0 || month > 12) {
-    res.status = 403;
-    res.send({success: false, message: "Please input the month between 01 - 12"})
-    return ;
-  }
-  
-  
-  res.send(resMsg);
-});
+app.use('/days', dayRouter);
 
 const startTimes = [
   '09:00:00', 
@@ -83,58 +70,10 @@ const startTimes = [
   '17:15:00'
 ]
 // Returns a list of all 40-minute time slots available
-app.get('timeslots', function(req, res) {
+app.get('/timeslots', function(req, res) {
   let resMsg = {
     success: null,
     timeSlots: [
-      {
-        startTime: "9:00",
-        endTime: "9:40"
-      },
-      {
-        startTime: "9:45",
-        endTime: "10:25"
-      },
-      {
-        startTime: "10:30",
-        endTime: "11:10"
-      },
-      {
-        startTime: "11:15",
-        endTime: "11:55"
-      },
-      {
-        startTime: "12:00",
-        endTime: "12:40"
-      },
-      {
-        startTime: "12:45",
-        endTime: "13:25"
-      },
-      {
-        startTime: "13:30",
-        endTime: "14:10"
-      },
-      {
-        startTime: "14:15",
-        endTime: "14:55"
-      },
-      {
-        startTime: "15:00",
-        endTime: "15:40"
-      },
-      {
-        startTime: "15:45",
-        endTime: "16:25"
-      },
-      {
-        startTime: "16:30",
-        endTime: "17:10"
-      },
-      {
-        startTime: "17:15",
-        endTime: "17:55"
-      }
     ]
   }
 
@@ -142,14 +81,74 @@ app.get('timeslots', function(req, res) {
   const month = req.query.month;
   const day = req.query.day;
 
-  // query google calender
+  if (!year || !month || !day) {
+    res.status = 403;
+    res.send({success: false, message: "Please input the right parameters"});
+    return ;
+  }
 
-  res.send(resMsg);
+  // user input year is not 4 digits
+  if (year.length != 4) {
+    res.status = 403;
+    res.send({success: false, message: "Invalid time slot: Please input the year with 4 digits"})
+    return ;
+  }
+
+  // user input month is not between 1 - 12
+  if (month == 0 || month > 12) {
+    res.status = 403;
+    res.send({success: false, message: "Invalid time slot: Please input the month between 01 - 12"})
+    return ;
+  }
+
+  // user input day is not between 1 - 31
+  if (day == 0 || day > 31) {
+    res.status = 403;
+    res.send({success: false, message: "Invalid time slot: Please input validate date"})
+    return ;
+  }
+
+  // query google calender
+  const startTime = new Date(Date.UTC(year, month-1, day, 9, 0, 0));
+  const endTime = new Date(Date.UTC(year, month-1, day, 18, 0, 0));
+
+  try {
+    test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
+      if (err) {
+        console.log(err.message);
+      } else {
+        console.log(timeslots)
+        for (let index = 0; index < startTimes.length; index++) {
+          // element is each one of the start time
+          const element = startTimes[index];
+          timeslots.map((timeslot) => {
+            if (timeslot.start.indexOf(element) == -1) {
+              console.log(element)
+              const startTime = new Date(Date.UTC(year, month-1, day, element.split(':')[0], element.split(':')[1], 0)),
+                    endTime = new Date(Date.UTC(year, month-1, day, element.split(':')[0], element.split(':')[1], 0));
+              endTime.setTime(endTime.getTime() + 40*60*1000);
+
+              resMsg.success = true;
+              resMsg.timeSlots.push({
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString()
+              });
+            }
+          });
+          //console.log(resMsg)
+        }
+        res.statusCode = 200;
+        res.send(resMsg);
+      }
+    });
+  } catch(error) {
+    console.log(error)
+  }
 });
 
-app.post('book', function (req, res) {
+app.post('/book', function (req, res) {
   const year = req.query.year;
-  const month = req.query.month;
+  let month = req.query.month;
   const day = req.query.day;
   const hour = req.query.hour;
   const minute = req.query.minute;
@@ -158,43 +157,59 @@ app.post('book', function (req, res) {
   const currentDate = Date.parse(date);
   const bookingDate = Date.parse(year + '-' + month + '-' + day);
 
-  // user input year is not in the past
+  // user input query is null
+  if (!year || !month || !day || !hour || !minute) {
+    res.statusCode = 403;
+    res.send({success: false, message: "Please input the right parameters"});
+    return ;
+  }
+
+  // user input year is in the past
   if (currentDate > bookingDate) {
     res.statusCode = 403;
     res.send({success: false, message: "Cannot book time in the past"});
     return ;
   }
 
-  if (bookingDate - currentDate > 24 * 60 * 60 * 1000) {
+  // user can't book with less than 24 hours in advance
+  if (bookingDate - currentDate < 24 * 60 * 60 * 1000) {
     res.statusCode = 403;
     res.send({success: false, message: "Cannot book with less than 24 hours in advance"});
     return ;
   }
 
+  // user input year is not 4 digits
   if (year.length != 4) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input the year with 4 digits"})
     return ;
   }
 
+  // user input month is not between 1 - 12
   if (month == 0 || month > 12) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input the month between 01 - 12"})
     return ;
+  } else if (month.length == 1) {
+    console.log(typeof month)
+    month = `0${month}`;
   }
 
+  // user input day is not between 1 - 31
   if (day == 0 || day > 31) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
     return ;
   }
 
+  // user input hour is not within 24h
   if (hour > 24) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
     return ;
   }
 
+  // user input minute is not within 60mins
   if (minute > 60) {
     res.status = 403;
     res.send({success: false, message: "Invalid time slot: Please input validate date"})
@@ -207,22 +222,27 @@ app.post('book', function (req, res) {
    * get the response of time slots
    */
   // var startTime = new Date('01 October 2019 14:48 UTC');
-  // var endTime = new Date('30 October 2019 14:48 UTC');
-  const startTime = new Date(day + ' ' + month + ' ' + year + ' 09:00');
-  const endTime = new Date(day + ' ' + month + ' ' + year + ' 18:00');
+  // var endTime = new Date('2019-10-31T14:48:00');
+  const startTime = new Date(Date.UTC(year, month-1, day, 9, 0, 0));
+  const endTime = new Date(Date.UTC(year, month-1, day, 18, 0, 0));
   const userTime = hour + ':' + minute + ':00';
-  test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
-    if (err) {
-      console.log(err.message);
-    } else {
-      timeslots.map((timeslot, i) => {
-        if (timeslot.start.indexOf(userTime) != -1) {
-          res.statusCode = 403;
-          res.send({success: false, message: 'Invalid time slot: this time is booked by someone else'});
-        }
-      })
-    }
-  });
+  try {
+    test.checkTimeSlots(startTime.toISOString(), endTime.toISOString(), (err, timeslots) => {
+      if (err) {
+        console.log(err.message);
+      } else {
+        console.log('all booked time today: ', timeslots)
+        timeslots.map((timeslot, i) => {
+          if (timeslot.start.indexOf(userTime) != -1) {
+            res.statusCode = 403;
+            res.send({success: false, message: 'Invalid time slot: this time is booked by someone else'});
+          }
+        })
+      }
+    });
+  } catch(error) {
+    console.log(error)
+  }
 
   if (startTimes.indexOf(userTime) == -1) {
     res.statusCode = 403;
@@ -234,19 +254,24 @@ app.post('book', function (req, res) {
    * insert event to calendar
    */
   // var beginTime = new Date('12 Oct 2019 09:00');
-  // var finishTime = new Date('12 Oct 2019 09:45');
-  const beginTime = new Date(day + ' ' + month + ' ' + year + ' ' + hour + ':' + minute + ':00');
-  const finishTime = new Date(day + ' ' + month + ' ' + year + ' ' + hour + ':' + minute + ':00');
+  // var finishTime = new Date('2019-10-12T18:00:00');
+  const beginTime = new Date(Date.UTC(year, month-1, day, hour, minute, 0));
+  const finishTime = new Date(Date.UTC(year, month-1, day, hour, minute, 0));
   let min = beginTime.getMinutes();
   finishTime.setMinutes(min + 40);
-  test.addEvent(beginTime.toISOString(), finishTime.toISOString(), (err, resp) => {
-    if (err) {
-      console.log(err.message)
-    } else {
-      res.statusCode = 200;
-      res.send({success: true, startTime: beginTime.toISOString(), endTime: finishTime.toISOString()});
-    }
-  });
+  try {
+    test.addEvent(beginTime.toISOString(), finishTime.toISOString(), (err, resp) => {
+      if (err) {
+        console.log(err.message)
+      } else {
+        res.statusCode = 200;
+        res.send({success: true, startTime: beginTime.toISOString(), endTime: finishTime.toISOString()});
+      }
+    });
+  } catch(error) {
+    console.log(error)
+  }
+  
 });
 
 // catch 404 and forward to error handler
